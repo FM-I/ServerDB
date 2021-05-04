@@ -13,33 +13,42 @@ namespace Server
     {
         private const string defaultConnection = @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=master;Integrated Security=True;";
         private const string connectioString = @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=Musics;Integrated Security=True";
+
+        /// <summary>
+        /// Підключення до база даних
+        /// </summary>
         SqlConnection connection;
+        /// <summary>
+        /// Контекст обраної таблиці
+        /// </summary>
         DataSet currentData = new DataSet();
 
         public DataBaseController()
         {
             connection = new SqlConnection(defaultConnection);
             connection.Open();
+            Console.WriteLine(GetDataBases());
+            Console.WriteLine();
             Console.WriteLine(GetTables("Musics"));
-            GetTableItems("Groups");
+            Console.WriteLine();
+            Console.WriteLine(GetTableItems("Groups"));
         }
 
+        /// <summary>
+        /// Отримання списку всіх баз даних
+        /// </summary>
+        /// <returns>Список баз даних у форматі Json</returns>
         public string GetDataBases()
         {
             var dataBases = connection.GetSchema("Databases");
-
-            List<string> dataBasesList = new List<string>();
-
-            foreach (DataRow row in dataBases.Rows)
-            {
-                dataBasesList.Add(row["database_name"].ToString());
-            }
-
-            Dictionary<string, List<string>> dict = new Dictionary<string, List<string>>();
-            dict["DataBase"] = dataBasesList;
-            return JsonSerializer.Serialize(dict);
+            return GetJson(dataBases, "database_name", "DataBase");
         }
 
+        /// <summary>
+        /// Отримання списку таблиць бази даних
+        /// </summary>
+        /// <param name="dataBase">Назва бази даних</param>
+        /// <returns>Список таблиць бази даних у форматі Json</returns>
         public string GetTables(string dataBase)
         {
             connection.Close();
@@ -50,19 +59,14 @@ namespace Server
 
             var Tables = connection.GetSchema("Tables");
 
-            List<string> tables = new List<string>();
-
-            foreach (DataRow row in Tables.Rows)
-            {
-                tables.Add(row["TABLE_NAME"].ToString());
-            }
-
-            Dictionary<string, List<string>> dict = new Dictionary<string, List<string>>();
-            dict["Tables"] = tables;
-            return JsonSerializer.Serialize(dict);
+            return GetJson(Tables, "TABLE_NAME", "Tables");
         }
 
-
+        /// <summary>
+        /// Отримання контексту бази даних
+        /// </summary>
+        /// <param name="table">Назва таблиці</param>
+        /// <returns>Контекст бази даних у форматі Json</returns>
         public string GetTableItems(string table)
         {
             SqlDataAdapter dataAdapter = new SqlDataAdapter($"SELECT * FROM {table}", connection);
@@ -77,6 +81,12 @@ namespace Server
             return JsonSerializer.Serialize(dict);
         }
 
+        /// <summary>
+        /// Отримання списку об'єктів стовбця в таблиці
+        /// </summary>
+        /// <param name="rows">Лінії таблиці</param>
+        /// <param name="col">Назва стовбця</param>
+        /// <returns>Список значень в стовбці</returns>
         private List<string> GetItemRow(DataRowCollection rows, DataColumn col)
         {
             List<string> rowItems = new List<string>();
@@ -87,49 +97,32 @@ namespace Server
             return rowItems;
         }
 
+        /// <summary>
+        /// Отримання Json
+        /// </summary>
+        /// <param name="data">Об'єкт DataTable</param>
+        /// <param name="key">Назва параметру для вибору з DataTable</param>
+        /// <param name="jsonKeyName">Назва ключа під яким зберігатиметься список</param>
+        /// <returns>Json</returns>
+        private string GetJson(DataTable data, string key, string jsonKeyName)
+        {
+            List<string> dataList = new List<string>();
+
+            foreach (DataRow row in data.Rows)
+            {
+                dataList.Add(row[key].ToString());
+            }
+
+            Dictionary<string, List<string>> dict = new Dictionary<string, List<string>>();
+            dict[jsonKeyName] = dataList;
+            return JsonSerializer.Serialize(dict);
+        }
+
+
         ~DataBaseController()
         {
             connection.Close();
             connection.Dispose();
         }
-
-        private static void ShowDataTable(DataTable table, Int32 length)
-        {
-            foreach (DataColumn col in table.Columns)
-            {
-                Console.Write("{0,-" + length + "}", col.ColumnName);
-            }
-            Console.WriteLine();
-
-            List<string> tables = new List<string>();
-
-            foreach (DataRow row in table.Rows)
-            {
-
-                tables.Add(row["database_name"].ToString());
-
-                //foreach (DataColumn col in table.Columns)
-                //{
-                //    if (col.DataType.Equals(typeof(DateTime)))
-                //        Console.Write("{0,-" + length + ":d}", row[col]);
-                //    else if (col.DataType.Equals(typeof(Decimal)))
-                //        Console.Write("{0,-" + length + ":C}", row[col]);
-                //    else
-                //        Console.Write("{0,-" + length + "}", row[col]);
-                //}
-            }
-
-
-            Dictionary<string, List<string>> dict = new Dictionary<string, List<string>>();
-            dict["Tables"] = tables;
-            string t = JsonSerializer.Serialize(dict);
-
-            Console.WriteLine(t);
-
-            var dt = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(t);
-
-            
-        }
-
     }
 }
