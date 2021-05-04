@@ -28,6 +28,9 @@ namespace Server
             connection = new SqlConnection(defaultConnection);
             connection.Open();
             Console.WriteLine(GetDataBases());
+            connection.Close();
+            connection.Dispose();
+
             Console.WriteLine();
             Console.WriteLine(GetTables("Musics"));
             Console.WriteLine();
@@ -51,9 +54,6 @@ namespace Server
         /// <returns>Список таблиць бази даних у форматі Json</returns>
         public string GetTables(string dataBase)
         {
-            connection.Close();
-            connection.Dispose();
-
             connection = new SqlConnection($@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dataBase};Integrated Security=True;");
             connection.Open();
 
