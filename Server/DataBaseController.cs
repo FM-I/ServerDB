@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Text.Json;
+
+using MySql.Data.MySqlClient;
 
 namespace Server
 {
@@ -11,30 +14,59 @@ namespace Server
     /// </summary>
     public class DataBaseController
     {
-        private const string defaultConnection = @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=master;Integrated Security=True;";
-        private const string connectioString = @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=Musics;Integrated Security=True";
+        /// <summary>
+        /// Рядок підключення
+        /// </summary>
+        MySqlConnectionStringBuilder builder;
 
         /// <summary>
         /// Підключення до база даних
         /// </summary>
-        SqlConnection connection;
+        MySqlConnection connection;
         /// <summary>
         /// Контекст обраної таблиці
         /// </summary>
         DataSet currentData = new DataSet();
 
-        public DataBaseController()
+        /// <summary>
+        /// Створення підключення до бази даних
+        /// </summary>
+        /// <param name="server">IP або назва серверу</param>
+        /// <param name="port">Порт підключення</param>
+        /// <param name="userID">Логін користувача</param>
+        /// <param name="password">Пароль підключення до бази даних</param>
+        /// <param name="database">Назва бази даних</param>
+        public DataBaseController(string server, uint port, string userID, string password, string database = "")
         {
-            connection = new SqlConnection(defaultConnection);
+
+            builder = new MySqlConnectionStringBuilder();
+
+            builder.Server = server;
+            builder.UserID = userID;
+            builder.Password = password;
+            builder.Database = database;
+            builder.Port = port;
+
+            connection = new MySqlConnection(builder.ConnectionString);
             connection.Open();
             Console.WriteLine(GetDataBases());
             connection.Close();
             connection.Dispose();
 
             Console.WriteLine();
-            Console.WriteLine(GetTables("Musics"));
+            Console.WriteLine(GetTables("school"));
             Console.WriteLine();
-            Console.WriteLine(GetTableItems("Groups"));
+            var x = JsonSerializer.Deserialize<Dictionary<string, ArrayList>>(GetTableItems("prozoro"));
+
+            foreach (var col in x)
+            {
+                Console.WriteLine(col.Key);
+                foreach (var item in col.Value)
+                {
+                    Console.WriteLine(item.GetType());
+                }
+            }
+
         }
 
         /// <summary>
@@ -54,7 +86,8 @@ namespace Server
         /// <returns>Список таблиць бази даних у форматі Json</returns>
         public string GetTables(string dataBase)
         {
-            connection = new SqlConnection($@"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog={dataBase};Integrated Security=True;");
+            builder.Database = dataBase;
+            connection = new MySqlConnection(builder.ConnectionString);
             connection.Open();
 
             var Tables = connection.GetSchema("Tables");
@@ -69,15 +102,15 @@ namespace Server
         /// <returns>Контекст бази даних у форматі Json</returns>
         public string GetTableItems(string table)
         {
-            SqlDataAdapter dataAdapter = new SqlDataAdapter($"SELECT * FROM {table}", connection);
+            MySqlDataAdapter dataAdapter = new MySqlDataAdapter($"SELECT * FROM {table}", connection);
             dataAdapter.Fill(currentData);
-            Dictionary<string, List<string>> dict = new Dictionary<string, List<string>>();
+            Dictionary<string, ArrayList> dict = new Dictionary<string, ArrayList>();
 
             foreach (DataColumn col in currentData.Tables[0].Columns)
             {
                 dict[col.ColumnName] = GetItemRow(currentData.Tables[0].Rows, col);
             }
-
+            
             return JsonSerializer.Serialize(dict);
         }
 
@@ -87,12 +120,12 @@ namespace Server
         /// <param name="rows">Лінії таблиці</param>
         /// <param name="col">Назва стовбця</param>
         /// <returns>Список значень в стовбці</returns>
-        private List<string> GetItemRow(DataRowCollection rows, DataColumn col)
+        private ArrayList GetItemRow(DataRowCollection rows, DataColumn col)
         {
-            List<string> rowItems = new List<string>();
+            ArrayList rowItems = new ArrayList();
             foreach (DataRow row in rows)
             {
-                rowItems.Add(row[col].ToString());
+                rowItems.Add(row[col]);
             }
             return rowItems;
         }
